@@ -1,0 +1,118 @@
+---
+title: 'Project 1: Wrangling, Exploration, Visualization'
+author: "SDS322E"
+date: ''
+output:
+  html_document:
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+  pdf_document:
+    toc: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, fig.align = "center", warning = F, message = F,
+tidy=TRUE, tidy.opts=list(width.cutoff=60), R.options=list(max.print=100))
+```
+
+```{R}
+library(tidyverse)
+statedata <- read_csv("state_info.csv")
+arrestdata <- read_csv("USArrests.csv")
+```
+
+## Data Wrangling, Exploration, Visualization
+
+### Tanish Bhowmick, tb33385
+
+#### Introduction 
+
+Paragraph or two introducing your datasets and variables, why they are interesting to you, etc.
+
+```{R}
+head(statedata)
+head(arrestdata)
+```
+
+The datasets above are taken from some of the inbuilt datasets from R. The first dataset displays statistics about the individual states, including population, income, illiteracy, and murder rates. The second dataset shows violent crime rates for different states. This types of violent crimes include murder, assault, rape, and the dataset also shows the percentage of the state population living in urban areas. I feel that these two datasets could show interesting correlation between the characteristics of a state and the crime rates in said states.
+
+#### Tidying: Reshaping
+
+If your datasets are tidy already, demonstrate that you can reshape data with pivot wider/longer here (e.g., untidy and then retidy). Alternatively, it may be easier to wait until the wrangling section so you can reshape your summary statistics. Note here if you are going to do this.
+
+```{R}
+pivot_longer(statedata,cols = 3:10) -> gatherstate
+gatherstate
+pivot_wider(gatherstate,names_from = name, values_from = value)
+```
+The above code shows the untidying and retidying of the states dataset. It first applies pivot_longer() to the dataset to make all the numerical values go into one column and have another column that stores all the variable characteristics. However, this becomes a dataset with 400 rows which is difficult to read through. I then apply the pivot_wider() command to retidy the dataset, so that the there are 10 columns and only 50 rows. Each column now holds its own characteristic and only numerical values making the data much easier to read.
+    
+#### Joining/Merging
+
+```{R}
+statedata %>% left_join(arrestdata,by=c("States","state.abb")) -> joindata
+head(joindata)
+```
+
+Above is the code used to join the data. I used a left join so that all the observations from the state data dataset were kept and only the matches from the arrest dataset were kept. This emphasizes the data from the arrestdata dataset. I joined the datasets by "States" and "state.abb" because both variables were present and identical in both datasets. This resulted in two observation columns being dropped (both from the arrestdata dataset) which were the "States" and "states.abb" columns. The number of rows remained the same indicating that there were matches for all variables for all states.
+
+####  Wrangling
+
+```{R}
+joindata %>% filter(Illiteracy<=1) %>% arrange(Illiteracy) %>% select(States, Illiteracy, UrbanPop, Murder.y, Assault, Rape)
+```
+This first wrangling command filters the states by illiteracy rate, taking only states with an illiteracy rate of less than 1% (meaning the more literate states out of the dataset). It then arranges these states by illiteracy rate and provides the selected data, including: Urban population percentage, murder, assault, and rape statistics. The table displayed provides statistical information about the crime rates for the most literate states which can be used to show correlation between literacy and crime.
+
+```{r}
+joindata %>% mutate(index = substring(States,1,1)) -> joindata
+joindata %>% group_by(index) %>% summarize(mean(Murder.y))
+```
+The above wrangling code uses the mutate, group_by, and summarize commands. It first uses mutate to create a new variable called "index" that stores the first letter of every state providing the ability to index the states just by the first letter. The code then uses the group_by function to organize the dataset by the first letters of every state. Finally, it uses the summarize function to calculate the average murder rate by the first letter of every state.
+
+```{r}
+joindata %>% summarize(mean=mean(Population),sd=sd(Population),var=var(Population),min=min(Population),max=max(Population))
+joindata %>% summarize(mean=mean(Income),sd=sd(Income),var=var(Income),min=min(Income),max=max(Income))
+joindata %>% summarize(mean=mean("Life Exp"),sd=sd("Life Exp"),var=var("Life Exp"),min=min("Life Exp"),max=max("Life Exp"))
+joindata %>% summarize(mean=mean(Area),sd=sd(Area),var=var(Area),min=min(Area),max=max(Area))
+joindata %>% summarize(mean=mean(Murder.y),sd=sd(Murder.y),var=var(Murder.y),min=min(Murder.y),max=max(Murder.y))
+joindata %>% summarize(mean=mean(Assault),sd=sd(Assault),var=var(Assault),min=min(Assault),max=max(Assault))
+joindata %>% summarize(mean=mean(Rape),sd=sd(Rape),var=var(Rape),min=min(Rape),max=max(Rape))
+
+joindata %>% count(index)
+
+```
+The first few summarization codes provides the overall statistical values(mean,sd,var,min, and max) for the variables of population, income, life expectancy, area, murder, assault, and rape. The second code provides the counts of how many values there are for every categorical value. This information tells us how many states start with the individual letters of the alphabet.
+
+
+
+#### Visualizing
+
+```{R}
+library(ggplot2)
+
+p1 <- ggplot(joindata, aes(index,Population)) + geom_histogram(stat="summary",fun=mean) + labs(title="Population vs State Index") + scale_y_continuous(name="Mean Population")
+
+p1 + theme(plot.title = element_text(size = rel(2)))
+```
+
+Plot 1 shows the mean populations of all the states compared to the alphabetical index. This provides data about whether there is a correlation between the alphabetical index and the mean population. More importantly, it helps provide a simpler organization and visual of where in the alphabet, states with higher populations may lie. For this plot, I created a histogram to plot the Mean population against the alphabetical index. I used the stat="summary" command here to ensure that the histogram plotted the means of all the population values rather than the individual values.
+
+```{R}
+p2 <- ggplot(joindata, aes(Illiteracy,Murder.y)) + geom_point(colour="blue") + geom_smooth(method="loess",se=F,formula=y~x) + labs(title="Murder vs. Illiteracy Rate") + scale_y_continuous(name="Murder Rate") + scale_x_continuous(breaks = round(seq(min(joindata$Illiteracy), max(joindata$Illiteracy), by = 0.25),2), name="Illiteracy Rate")
+
+p2 + theme(axis.line = element_line(size = 3, colour = "grey"))
+```
+
+This plot shows the correlation between murder and illiteracy rates. This plot is meant to provide a visual representation of the correlation between the two variables. We can observe above a positive correlation between murder rates and illiteracy, indicating that in states with higher rates of illiteracy there are higher rates of murder. This can be useful to show politicians the importance of emphasizing education in states to reduce crime rates. The plot was made by creating a scatter plot from Illiteracy and Murder rates in our joined dataset. I then added a smoothed line to better indicate the direction of the correlation. I also increased the number of ticks on the x-axis to better indicate the differences in illiteracy rates for different states.
+
+```{R}
+p3 <- ggplot(joindata, aes(index,Assault)) + geom_boxplot() + labs(title="Assault vs State Index") + scale_y_continuous(name="Assault",seq(0,max(joindata$Assault),by=25))
+
+p3 + theme(plot.title = element_text(size = rel(2)), panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank())
+```
+
+This plot shows the relationship between the states alphabetical index and the respective assault rates. This provides a simple visual representation and general idea of which states have higher rates of assault. It also shows the variation present in the different states' rates of assault seen through the various quartile calculations in the boxplot. It was created by using the geom_boxplot command. The gridlines for the x axis variables were removed to emphasize the axis lines of the assault rates (rather than categorical variable gridlines).
+
+
